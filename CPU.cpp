@@ -44,17 +44,19 @@ void  CPU::interpret(std::vector<uint8_t> progream) {
 
 }
 
-class _ll: public OPCODE {
+class LDA_0xA9: public OPCODE {
 public:
     void proceed(CONTEXT& ctx) override {
-        std::printf("Hello\n");
+        std::printf("LDA_0xA9\n");
+
+        
     }
 };
 
 
 int main() {
     CPU c1;
-    c1.register_opencode(12, new _ll());
+    c1.register_opencode(12, new LDA_0xA9());
     (*c1.opcodeMap[12]).proceed(c1.ctx);
     return 0;
 }
