@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <cstdio>
 
+#include <cstring>
+
 class Context {
 public:
     uint8_t register_a;
@@ -189,6 +191,7 @@ public:
 class TAX_0xAA: public Instruction {
 public:
     void proceed(Context& ctx) override {
+        std::printf("TAX\n");
         ctx.register_x = ctx.register_a;
         update_zero_and_negative_flags(ctx, ctx.register_x);
     }
@@ -196,15 +199,16 @@ public:
 
 class INX_0xE8: public Instruction {
     void proceed(Context& ctx) override {
+        std::printf("INX\n");
         ctx.register_x += 1;
         update_zero_and_negative_flags(ctx, ctx.register_x);
     }
 };
 
-class BRK_0x00: public Instruction {
+class BRK: public Instruction {
 public:
     void proceed(Context& ctx) override {
-        std::printf("BRK_0x00\n");
+        std::printf("BRK\n");
         ctx.terminal = true;
     }
 };
@@ -223,7 +227,7 @@ public:
         register_opencode(0x85, new STA<ZeroPage>());
         register_opencode(0x95, new STA<ZeroPage_X>());
 
-        register_opencode(0x00, new BRK_0x00());
+        register_opencode(0x00, new BRK());
         register_opencode(0xAA, new TAX_0xAA());
         register_opencode(0xE8, new INX_0xE8());
     }
@@ -233,24 +237,30 @@ public:
     }
 
     void run();
+    void load(std::vector<uint8_t>);
+    
+    
+    void load_and_run(std::vector<uint8_t> program) {
+        load(program);
+        reset();
+        run();
+    }
 
     void reset() {
         ctx.register_a = 0;
         ctx.register_x = 0;
+        ctx.register_y = 0;
         ctx.status = 0;
 
         ctx.program_counter = AddressingMode::mem_read_u16(ctx.mem, 0xFFFC);
+        ctx.terminal = false;
     }
 
-    void load(std::vector<uint8_t> progra) {
-        // memset
-    }
+    
 
 };
 
 void  CPU::run() {
-    ctx.program_counter = 0;
-
     while(true) {
         std::printf("program_counter: %d\n", ctx.program_counter);
 
@@ -264,6 +274,13 @@ void  CPU::run() {
         }
     }
 
+}
+
+void CPU::load(std::vector<uint8_t> program) {
+    // memcpy
+    uint16_t offset = 0x8000;
+    std::memcpy(ctx.mem.data() + offset, program.data(), program.size());
+    AddressingMode::mem_write_u16(ctx.mem, 0xFFFC, 0x8000);
 }
 
 
