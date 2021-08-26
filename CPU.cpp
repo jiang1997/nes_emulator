@@ -6,29 +6,39 @@
 
 #include <cstring>
 
+// status register 
+#define INDEX_OF_N 7
+#define INDEX_OF_V 6
+#define INDEX_OF_B 4
+#define INDEX_OF_D 3
+#define INDEX_OF_I 2
+#define INDEX_OF_Z 1
+#define INDEX_OF_C 0
+
+
 class Context {
 public:
-    uint8_t register_a;
-    uint8_t register_x;
-    uint8_t register_y;
-    uint8_t status;
+    uint8_t& register_a;
+    uint8_t& register_x;
+    uint8_t& register_y;
+    uint8_t& status;
     uint16_t program_counter;
 
     bool terminal;
 
-    std::vector<uint8_t> mem;
+    uint8_t mem[0xFFFF + 8];
 
-    Context() {
-        register_a = 0;
-        register_x = 0;
-        register_y = 0;
-        status = 0;
+    Context(): register_a(mem[0xFFFF + 0]), register_x(mem[0xFFFF + 1]), register_y(mem[0xFFFF + 2]), status(mem[0xFFFF + 3]) {
+        // register_a = mem[0xFFFF + 0];
+        // register_x = mem[0xFFFF + 1];
+        // register_y = mem[0xFFFF + 2];
+        // status = mem[0xFFFF + 3];
         program_counter = 0;
 
         terminal = false;
 
-        mem = std::vector<uint8_t>(0xFFFF);
     }
+
 };
 
 
@@ -55,25 +65,33 @@ public:
             ctx.status = ctx.status & 0b01111111;
         }
     }
+
+    void set_bit(uint8_t& data, uint8_t i) {
+        data = data | ((uint8_t)1 << i);
+    }
+
+    void unset_bit(uint8_t& data, uint8_t i) {
+        data = data & ~((uint8_t)1 << i);
+    }
 };
 
 class AddressingMode {
 public:
-    static uint8_t mem_read(std::vector<uint8_t>& mem, uint16_t addr) {
+    static uint8_t mem_read(uint8_t* mem, uint16_t addr) {
         return mem[addr];
     }
 
-    static void mem_write(std::vector<uint8_t>& mem, uint16_t addr, uint8_t data) {
+    static void mem_write(uint8_t* mem, uint16_t addr, uint8_t data) {
         mem[addr] = data;
     }
 
-    static uint16_t mem_read_u16(std::vector<uint8_t>& mem, uint16_t pos) {
+    static uint16_t mem_read_u16(uint8_t* mem, uint16_t pos) {
         uint16_t lo = mem_read(mem, pos);
         uint16_t hi = mem_read(mem, pos + 1);
         return (hi << 8) | (uint8_t)lo;
     }
 
-    static void mem_write_u16(std::vector<uint8_t>& mem, uint16_t pos, uint16_t data) {
+    static void mem_write_u16(uint8_t* mem, uint16_t pos, uint16_t data) {
         uint8_t hi = data >> 8;
         uint8_t lo = data & 0xFF;
         mem_write(mem, pos, lo);
@@ -178,6 +196,14 @@ public:
     }
 };
 
+class Accumulator: public AddressingMode{
+public:
+    static uint16_t get_operand_address(Context& ctx) {
+        return 0xFFFF + 0;
+    }
+};
+
+
 template <class Mode>
 class LDA: public Instruction {
 public:
@@ -188,6 +214,50 @@ public:
         ctx.register_a = param;
 
         update_zero_and_negative_flags(ctx, ctx.register_a);
+    }
+};
+
+template <class Mode>
+class AND: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        std::printf("AND\n");
+        uint8_t param = ctx.mem[Mode::get_operand_address(ctx)];
+        ctx.register_a &= param;
+        update_zero_and_negative_flags(ctx, ctx.register_a);        
+    }
+};
+
+template <class Mode>
+class ASL: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        std::printf("ASL\n");
+        uint8_t addr = Mode::get_operand_address(ctx);
+        uint8_t param = Mode::mem_read(ctx.mem, addr);
+        Mode::mem_write(ctx.mem, addr, param << 1);
+
+
+        // set C
+        ctx.status = ctx.status | (param & ((uint8_t)1 << INDEX_OF_C));
+
+        // Z
+        if(Mode::mem_read(ctx.mem, addr) != 0) {
+            set_bit(ctx.status, INDEX_OF_Z);
+            // ctx.status = ctx.status & 0b11111101;
+        } else {
+            unset_bit(ctx.status, INDEX_OF_Z);
+            // ctx.status = ctx.status | 0b00000010;
+        }
+
+        // set N
+        if(Mode::mem_read(ctx.mem, addr) & 0b10000000 != 0) {
+            set_bit(ctx.status, INDEX_OF_N);
+            // ctx.status = ctx.status | 0b10000000; 
+        } else {
+            unset_bit(ctx.status, INDEX_OF_N);
+        }
+        
     }
 };
 
@@ -270,7 +340,7 @@ public:
         ctx.terminal = false;
     }
 
-    
+
 
 };
 
@@ -293,7 +363,7 @@ void  CPU::run() {
 void CPU::load(std::vector<uint8_t> program) {
     // memcpy
     uint16_t offset = 0x8000;
-    std::memcpy(ctx.mem.data() + offset, program.data(), program.size());
+    std::memcpy(ctx.mem + offset, program.data(), program.size());
     AddressingMode::mem_write_u16(ctx.mem, 0xFFFC, 0x8000);
 }
 
