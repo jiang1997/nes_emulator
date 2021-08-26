@@ -84,14 +84,18 @@ public:
 class Immediate: public AddressingMode{
 public:
     static uint16_t get_operand_address(Context& ctx) {
-        return ctx.program_counter;
+        uint16_t addr = ctx.program_counter;
+        ctx.program_counter += 1;
+        return addr;
     }
 };
 
 class ZeroPage: public AddressingMode{
 public:
     static uint16_t get_operand_address(Context& ctx) {
-        return mem_read(ctx.mem, ctx.program_counter);
+        uint8_t addr = mem_read(ctx.mem, ctx.program_counter);
+        ctx.program_counter += 1;
+        return addr;
     }
 };
 
@@ -100,6 +104,7 @@ public:
     static uint16_t get_operand_address(Context& ctx) {
         uint8_t pos = mem_read(ctx.mem, ctx.program_counter);
         uint8_t addr = pos + ctx.register_x;
+        ctx.program_counter += 1;
         return addr;
     }
 };
@@ -109,6 +114,7 @@ public:
     static uint16_t get_operand_address(Context& ctx) {
         uint8_t pos = mem_read(ctx.mem, ctx.program_counter);
         uint8_t addr = pos + ctx.register_y;
+        ctx.program_counter += 1;
         return addr;
     }
 };
@@ -116,7 +122,9 @@ public:
 class Absolute: public AddressingMode{
 public:
     static uint16_t get_operand_address(Context& ctx) {
-        return mem_read_u16(ctx.mem, ctx.program_counter);
+        uint16_t addr = mem_read_u16(ctx.mem, ctx.program_counter);
+        ctx.program_counter += 2;
+        return addr;
     }
 };
 
@@ -125,6 +133,7 @@ public:
     static uint16_t get_operand_address(Context& ctx) {
         uint16_t base = mem_read_u16(ctx.mem, ctx.program_counter);
         uint16_t addr = base + ctx.register_x;
+        ctx.program_counter += 2;
         return addr;
     }
 };
@@ -134,6 +143,7 @@ public:
     static uint16_t get_operand_address(Context& ctx) {
         uint16_t base = mem_read_u16(ctx.mem, ctx.program_counter);
         uint16_t addr = base + ctx.register_y;
+        ctx.program_counter += 2;
         return addr;
     }
 };
@@ -143,9 +153,12 @@ public:
     static uint16_t get_operand_address(Context& ctx) {
         uint8_t base = mem_read(ctx.mem, ctx.program_counter);
         uint8_t ptr = base + ctx.register_x;
-        uint16_t lo = mem_read(ctx.mem, ptr);
-        uint16_t hi = mem_read(ctx.mem, ptr + 1);
-        return (hi << 8) | (uint8_t)lo;
+        // uint16_t lo = mem_read(ctx.mem, ptr);
+        // uint16_t hi = mem_read(ctx.mem, ptr + 1);
+        uint16_t addr = mem_read_u16(ctx.mem, ptr);
+        ctx.program_counter += 1;
+        // return (hi << 8) | (uint8_t)lo;
+        return addr;
     }
 };
 
@@ -154,12 +167,13 @@ public:
     static uint16_t get_operand_address(Context& ctx) {
         uint8_t base = mem_read(ctx.mem, ctx.program_counter);
 
-        uint16_t lo = mem_read(ctx.mem, base);
-        uint16_t hi = mem_read(ctx.mem, base + 1);
-
-        uint16_t deref_base = (hi << 8) | (uint8_t)lo;
+        // uint16_t lo = mem_read(ctx.mem, base);
+        // uint16_t hi = mem_read(ctx.mem, base + 1);
+        // uint16_t deref_base = (hi << 8) | (uint8_t)lo;
+        uint16_t deref_base = mem_read_u16(ctx.mem, base);
         uint16_t deref = deref_base + ctx.register_y;
 
+        ctx.program_counter += 1;
         return deref;
     }
 };
@@ -170,7 +184,7 @@ public:
     void proceed(Context& ctx) override {
         std::printf("LDA\n");
         uint8_t param = ctx.mem[Mode::get_operand_address(ctx)];
-        ctx.program_counter += 1;
+        // ctx.program_counter += 1;
         ctx.register_a = param;
 
         update_zero_and_negative_flags(ctx, ctx.register_a);
