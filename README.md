@@ -3,12 +3,18 @@ Instructions
 - [ ] ADC
 - [x] AND
 - [x] ASL
-- [ ] BCC
+- [X] BCC
+- [X] BNE
+
+- [X] DEX
+- [X] DEY
+
+
+- [x] LDA
 
 
 
-- [ ] LDA
+- [x] STA
+- [x] STX
 
-
-
-- [ ] STA
+- [x] CPX

@@ -6,6 +6,8 @@
 
 #include <cstring>
 
+#include <cassert>
+
 // status register 
 #define INDEX_OF_N 7
 #define INDEX_OF_V 6
@@ -72,6 +74,10 @@ public:
 
     void unset_bit(uint8_t& data, uint8_t i) {
         data = data & ~((uint8_t)1 << i);
+    }
+
+    bool get_bit(uint8_t& data, uint8_t i) {
+        return (data & ((uint8_t)1 << i)) != 0;
     }
 };
 
@@ -203,6 +209,20 @@ public:
     }
 };
 
+class Relative: public AddressingMode{
+public:
+    static uint16_t get_operand_address(Context& ctx) {
+        uint16_t base = 0;
+        int8_t displacement = mem_read(ctx.mem, ctx.program_counter);
+        ctx.program_counter += 1;
+        base = ctx.program_counter;
+
+        // std::printf("___:  %d, %d\n", (int32_t)base + displacement, (int32_t)UINT16_MAX);
+        assert((int32_t)base + displacement <= (int32_t)UINT16_MAX);
+        return (int32_t)base + displacement;
+    }
+};
+
 
 template <class Mode>
 class LDA: public Instruction {
@@ -214,6 +234,18 @@ public:
         ctx.register_a = param;
 
         update_zero_and_negative_flags(ctx, ctx.register_a);
+    }
+};
+
+template <class Mode>
+class LDX: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        std::printf("LDX\n");
+        uint8_t param = ctx.mem[Mode::get_operand_address(ctx)];
+        // ctx.program_counter += 1;
+        ctx.register_x = param;
+        update_zero_and_negative_flags(ctx, ctx.register_x);
     }
 };
 
@@ -271,6 +303,76 @@ public:
     }
 };
 
+template <class Mode>
+class STX: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        std::printf("STX\n");
+        uint16_t addr = Mode::get_operand_address(ctx);
+        Mode::mem_write(ctx.mem, addr, ctx.register_x);
+    }
+};
+
+template <class Mode>
+class BCC: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        std::printf("BCC\n");
+        uint16_t addr = Mode::get_operand_address(ctx);
+        ctx.program_counter = addr;
+    }
+};
+
+template <class Mode>
+class BNE: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        std::printf("BNE\n");
+        uint16_t addr = Mode::get_operand_address(ctx);
+        if(get_bit(ctx.status, INDEX_OF_Z) == false) {
+            ctx.program_counter = addr;
+        }
+    }
+};
+
+class DEX: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        std::printf("DEX\n");
+        ctx.register_x -= 1;
+        update_zero_and_negative_flags(ctx, ctx.register_x);
+        // printf("X: %x\n", ctx.register_x);
+    }
+};
+
+class DEY: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        std::printf("DEY\n");
+        ctx.register_y -= 1;
+        update_zero_and_negative_flags(ctx, ctx.register_y);
+    }
+};
+
+template <class Mode>
+class CPX: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        std::printf("CPX\n");
+        uint16_t addr = Mode::get_operand_address(ctx);
+        uint8_t param = Mode::mem_read(ctx.mem, addr);
+        if(ctx.register_x >= param) {
+            set_bit(ctx.status, INDEX_OF_C);
+        }
+        if(ctx.register_x ==  param) {
+            set_bit(ctx.status, INDEX_OF_Z);
+        }
+        if(ctx.register_x - param >= (1<<7)) {
+            set_bit(ctx.status, INDEX_OF_N);
+        }
+    }
+};
+
 
 class TAX_0xAA: public Instruction {
 public:
@@ -294,6 +396,7 @@ public:
     void proceed(Context& ctx) override {
         std::printf("BRK\n");
         ctx.terminal = true;
+        // set_bit(ctx.status, INDEX_OF_B);
     }
 };
 
@@ -307,13 +410,21 @@ public:
         register_opencode(0xA9, new LDA<Immediate>());
         register_opencode(0xA5, new LDA<ZeroPage>());
         register_opencode(0xAD, new LDA<Absolute>());
+        register_opencode(0xA2, new LDX<Immediate>());
+        register_opencode(0xCA, new DEX());
+
+        register_opencode(0x90, new BCC<Relative>());
+        register_opencode(0xD0, new BNE<Relative>());
 
         register_opencode(0x85, new STA<ZeroPage>());
         register_opencode(0x95, new STA<ZeroPage_X>());
+        register_opencode(0x8E, new STX<Absolute>()); 
 
         register_opencode(0x00, new BRK());
         register_opencode(0xAA, new TAX_0xAA());
         register_opencode(0xE8, new INX_0xE8());
+
+        register_opencode(0xE0, new CPX<Immediate>());
     }
 
     void register_opencode(uint8_t opcode, Instruction* fn) {
@@ -321,6 +432,7 @@ public:
     }
 
     void run();
+    void step();
     void load(std::vector<uint8_t>);
     
     
@@ -358,6 +470,17 @@ void  CPU::run() {
         }
     }
 
+}
+
+void CPU::step() {
+        std::printf("program_counter: %d\n", ctx.program_counter);
+        uint8_t opcode = ctx.mem[ctx.program_counter];
+        ctx.program_counter += 1;
+
+        opscodeMap[opcode]->proceed(ctx);
+        if(ctx.terminal) {
+            std::printf("terminal\n");
+        }
 }
 
 void CPU::load(std::vector<uint8_t> program) {
