@@ -3,18 +3,21 @@ Instructions
 - [ ] ADC
 - [x] AND
 - [x] ASL
-- [X] BCC
-- [X] BNE
+- [x] BCC
+- [x] BNE
 
-- [X] DEX
-- [X] DEY
+- [x] DEX
+- [x] DEY
 
 
 - [x] LDA
 
-
+- [x] PHA
+- [x] PLA
 
 - [x] STA
 - [x] STX
 
 - [x] CPX
+
+- [x]Addressing Mode

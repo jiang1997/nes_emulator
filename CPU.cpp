@@ -25,6 +25,7 @@ public:
     uint8_t& register_y;
     uint8_t& status;
     uint16_t program_counter;
+    uint8_t stack_pointer;
 
     bool terminal;
 
@@ -105,6 +106,13 @@ public:
     }
 };
 
+
+// Immediate
+// Immediate addressing allows the programmer to directly specify an 8 bit constant within the instruction. It is indicated by a '#' symbol followed by an numeric expression. For example:
+
+//         LDA #10         ;Load 10 ($0A) into the accumulator
+//         LDX #LO LABEL   ;Load the LSB of a 16 bit address into X
+//         LDY #HI LABEL   ;Load the MSB of a 16 bit address into Y
 class Immediate: public AddressingMode{
 public:
     static uint16_t get_operand_address(Context& ctx) {
@@ -172,6 +180,16 @@ public:
     }
 };
 
+class Indirect: public AddressingMode {
+public:
+    static uint16_t get_operand_address(Context& ctx) {
+        uint16_t ptr = mem_read_u16(ctx.mem, ctx.program_counter);
+        uint16_t deref = mem_read_u16(ctx.mem, ptr);
+        ctx.program_counter += 2;
+        return deref;
+    }
+};
+
 class Indirect_X: public AddressingMode{
 public:
     static uint16_t get_operand_address(Context& ctx) {
@@ -218,8 +236,8 @@ public:
         base = ctx.program_counter;
 
         // std::printf("___:  %d, %d\n", (int32_t)base + displacement, (int32_t)UINT16_MAX);
-        assert((int32_t)base + displacement <= (int32_t)UINT16_MAX);
-        return (int32_t)base + displacement;
+        // assert((int32_t)base + displacement <= (int32_t)UINT16_MAX);
+        return base + displacement;
     }
 };
 
@@ -341,7 +359,6 @@ public:
         std::printf("DEX\n");
         ctx.register_x -= 1;
         update_zero_and_negative_flags(ctx, ctx.register_x);
-        // printf("X: %x\n", ctx.register_x);
     }
 };
 
@@ -372,6 +389,28 @@ public:
         }
     }
 };
+
+template <class Mode>
+class PHA: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        std::printf("PHA\n");
+        Mode::mem_write(ctx.mem, 0x0100 + ctx.stack_pointer, ctx.register_a);
+        ctx.stack_pointer -= 1;
+    }
+};
+
+template <class Mode>
+class PLA: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        std::printf("PLA\n");
+        ctx.register_a = Mode::mem_read(ctx.mem, 0x0100 + ctx.stack_pointer);
+        ctx.stack_pointer += 1;
+        update_zero_and_negative_flags(ctx, ctx.register_a);
+    }
+};
+
 
 
 class TAX_0xAA: public Instruction {
@@ -449,6 +488,7 @@ public:
         ctx.status = 0;
 
         ctx.program_counter = AddressingMode::mem_read_u16(ctx.mem, 0xFFFC);
+        ctx.stack_pointer = 0xFF;
         ctx.terminal = false;
     }
 
