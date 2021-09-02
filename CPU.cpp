@@ -220,12 +220,6 @@ public:
     }
 };
 
-class Accumulator: public AddressingMode{
-public:
-    static uint16_t get_operand_address(Context& ctx) {
-        return 0xFFFF + 0;
-    }
-};
 
 class Relative: public AddressingMode{
 public:
@@ -241,6 +235,7 @@ public:
     }
 };
 
+class Implied: public AddressingMode{ };
 
 template <class Mode>
 class LDA: public Instruction {
@@ -353,6 +348,7 @@ public:
     }
 };
 
+template <class Mode>
 class DEX: public Instruction {
 public:
     void proceed(Context& ctx) override {
@@ -362,6 +358,7 @@ public:
     }
 };
 
+template <class Mode>
 class DEY: public Instruction {
 public:
     void proceed(Context& ctx) override {
@@ -405,15 +402,44 @@ class PLA: public Instruction {
 public:
     void proceed(Context& ctx) override {
         std::printf("PLA\n");
-        ctx.register_a = Mode::mem_read(ctx.mem, 0x0100 + ctx.stack_pointer);
         ctx.stack_pointer += 1;
+        ctx.register_a = Mode::mem_read(ctx.mem, 0x0100 + ctx.stack_pointer);
         update_zero_and_negative_flags(ctx, ctx.register_a);
     }
 };
 
+template <class Mode>
+class JMP: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        uint16_t addr = Mode::get_operand_address(ctx);
+        ctx.program_counter = addr;
+    }
+};
 
+template <class Mode>
+class JSR: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        uint16_t addr = Mode::get_operand_address(ctx);
+        Mode::mem_write(ctx.mem, 0x0100 + ctx.stack_pointer, ctx.program_counter);
+        ctx.stack_pointer -= 1;
+        ctx.program_counter = addr;
+    }
+};
 
-class TAX_0xAA: public Instruction {
+template <class Mode>
+class RTS: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        ctx.stack_pointer += 1;
+        uint16_t addr = Mode::mem_read(ctx.mem, 0x0100 + ctx.stack_pointer);
+        ctx.program_counter = addr;
+    }
+};
+
+template <class Mode>
+class TAX: public Instruction {
 public:
     void proceed(Context& ctx) override {
         std::printf("TAX\n");
@@ -422,7 +448,8 @@ public:
     }
 };
 
-class INX_0xE8: public Instruction {
+template <class Mode>
+class INX: public Instruction {
     void proceed(Context& ctx) override {
         std::printf("INX\n");
         ctx.register_x += 1;
@@ -430,6 +457,7 @@ class INX_0xE8: public Instruction {
     }
 };
 
+template <class Mode>
 class BRK: public Instruction {
 public:
     void proceed(Context& ctx) override {
@@ -450,7 +478,7 @@ public:
         register_opencode(0xA5, new LDA<ZeroPage>());
         register_opencode(0xAD, new LDA<Absolute>());
         register_opencode(0xA2, new LDX<Immediate>());
-        register_opencode(0xCA, new DEX());
+        register_opencode(0xCA, new DEX<Implied>());
 
         register_opencode(0x90, new BCC<Relative>());
         register_opencode(0xD0, new BNE<Relative>());
@@ -459,9 +487,9 @@ public:
         register_opencode(0x95, new STA<ZeroPage_X>());
         register_opencode(0x8E, new STX<Absolute>()); 
 
-        register_opencode(0x00, new BRK());
-        register_opencode(0xAA, new TAX_0xAA());
-        register_opencode(0xE8, new INX_0xE8());
+        register_opencode(0x00, new BRK<Implied>());
+        register_opencode(0xAA, new TAX<Implied>());
+        register_opencode(0xE8, new INX<Implied>());
 
         register_opencode(0xE0, new CPX<Immediate>());
     }

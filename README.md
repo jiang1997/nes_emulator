@@ -5,6 +5,9 @@ Instructions
 - [x] ASL
 - [x] BCC
 - [x] BNE
+- [x] JMP
+- [x] JSR
+- [x] RTS
 
 - [x] DEX
 - [x] DEY
