@@ -4,7 +4,16 @@ Instructions
 - [x] AND
 - [x] ASL
 - [x] BCC
+- [ ] BCS
+- [ ] BEQ
+- [ ] BIT
+- [ ] BMI
 - [x] BNE
+- [ ] BPL
+- [ ] BRK
+- [ ] BVc
+- [ ] BVS
+- [ ] CLC
 - [x] JMP
 - [x] JSR
 - [x] RTS
@@ -20,6 +29,12 @@ Instructions
 
 - [x] STA
 - [x] STX
+- [x] TAX
+- [x] TAY
+- [x] TSX
+- [x] TXA
+- [x] TXS
+- [x] TYA
 
 - [x] CPX
 

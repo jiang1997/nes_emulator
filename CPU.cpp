@@ -449,6 +449,56 @@ public:
 };
 
 template <class Mode>
+class TAY: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        std::printf("TAY\n");
+        ctx.register_y = ctx.register_a;
+        update_zero_and_negative_flags(ctx, ctx.register_y);
+    }
+};
+
+template <class Mode>
+class TSX: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        std::printf("TSX\n");
+        ctx.register_x = ctx.stack_pointer;
+        update_zero_and_negative_flags(ctx, ctx.register_x);
+    }
+};
+
+template <class Mode>
+class TXA: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        std::printf("TXA\n");
+        ctx.register_a = ctx.register_x;
+        update_zero_and_negative_flags(ctx, ctx.register_a);
+    }
+};
+
+template <class Mode>
+class TXS: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        std::printf("TXS\n");
+        ctx.stack_pointer = ctx.register_x;
+        // update_zero_and_negative_flags(ctx, ctx.stack_pointer);
+    }
+};
+
+template <class Mode>
+class TYA: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        std::printf("TYA\n");
+        ctx.register_a = ctx.register_y;
+        update_zero_and_negative_flags(ctx, ctx.register_a);
+    }
+};
+
+template <class Mode>
 class INX: public Instruction {
     void proceed(Context& ctx) override {
         std::printf("INX\n");
