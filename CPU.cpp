@@ -374,6 +374,30 @@ public:
 };
 
 template <class Mode>
+class BEQ: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        std::printf("BEQ\n");
+        uint16_t addr = Mode::get_operand_address(ctx);
+        if(is_bit_set(ctx.status, INDEX_OF_Z)) {
+            ctx.program_counter = addr;
+        }
+    }
+};
+
+template <class Mode>
+class BMI: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        std::printf("BMI\n");
+        uint16_t addr = Mode::get_operand_address(ctx);
+        if(is_bit_set(ctx.status, INDEX_OF_N)) {
+            ctx.program_counter = addr;
+        }
+    }
+};
+
+template <class Mode>
 class BNE: public Instruction {
 public:
     void proceed(Context& ctx) override {
@@ -384,6 +408,19 @@ public:
         }
     }
 };
+
+template <class Mode>
+class BPL: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        std::printf("BPL\n");
+        uint16_t addr = Mode::get_operand_address(ctx);
+        if(is_bit_clear(ctx.status, INDEX_OF_N)) {
+            ctx.program_counter = addr;
+        }
+    }
+};
+
 
 template <class Mode>
 class DEX: public Instruction {
@@ -578,9 +615,15 @@ public:
         register_opencode(0x0E, new ASL<Absolute>());
         register_opencode(0x1E, new ASL<Absolute_X>());
 
-        // BCC
+
         register_opencode(0x90, new BCC<Relative>());
         register_opencode(0xB0, new BCS<Relative>());
+        register_opencode(0xF0, new BEQ<Relative>());
+        
+        register_opencode(0x30, new BMI<Relative>());
+        register_opencode(0xD0, new BNE<Relative>());
+        register_opencode(0x10, new BPL<Relative>());
+        register_opencode(0x00, new BRK<Implied>());
 
 
         register_opencode(0xA9, new LDA<Immediate>());
@@ -588,15 +631,14 @@ public:
         register_opencode(0xAD, new LDA<Absolute>());
         register_opencode(0xA2, new LDX<Immediate>());
         register_opencode(0xCA, new DEX<Implied>());
-
         
-        register_opencode(0xD0, new BNE<Relative>());
+
 
         register_opencode(0x85, new STA<ZeroPage>());
         register_opencode(0x95, new STA<ZeroPage_X>());
         register_opencode(0x8E, new STX<Absolute>()); 
 
-        register_opencode(0x00, new BRK<Implied>());
+        
         register_opencode(0xAA, new TAX<Implied>());
         register_opencode(0xE8, new INX<Implied>());
 

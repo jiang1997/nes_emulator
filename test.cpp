@@ -64,8 +64,8 @@ void test_BBC() {
     }
 }
 
-void test_AND_and_ASL() {
-    std::printf("-------test_AND_relative-------\n");
+void test_BCC_and_ASL() {
+    std::printf("-------test_BCC_and_ASL-------\n");
     c1.load({0xa9, 0x01, 0x0a, 0x90, 0xfd, 0x00});
     c1.reset();
     // for(int i = 0; c1.ctx.terminal != true; ++i) {
@@ -89,6 +89,21 @@ void test_AND_and_ASL() {
     
 }
 
+void test_BCS_and_ASL() {
+    std::printf("-------test_BCS_and_ASL-------\n");
+    c1.load({0xa9, 0x80, 0x0a, 0xb0, 0xfd, 0x00});
+    c1.reset();
+
+    c1.step();
+    uint16_t a1 = c1.ctx.program_counter;
+    c1.step();
+    c1.step();
+    assert(c1.ctx.program_counter == a1);
+    
+    c1.run();
+
+}
+
 int main() {
 
 
@@ -99,6 +114,8 @@ int main() {
     test_5_ops_working_together();
     test_INX_ouerflow();
     test_BBC();
-    test_AND_and_ASL();
+    test_BCC_and_ASL();
+
+    test_BCS_and_ASL();
     return 0;
 }

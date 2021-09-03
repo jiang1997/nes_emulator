@@ -5,11 +5,11 @@ Instructions
 - [x] ASL
 - [x] BCC
 - [x] BCS
-- [ ] BEQ
+- [x] BEQ
 - [ ] BIT
-- [ ] BMI
+- [x] BMI
 - [x] BNE
-- [ ] BPL
+- [x] BPL
 - [ ] BRK
 - [ ] BVc
 - [ ] BVS
