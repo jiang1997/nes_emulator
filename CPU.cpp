@@ -73,12 +73,16 @@ public:
         data = data | ((uint8_t)1 << i);
     }
 
-    void unset_bit(uint8_t& data, uint8_t i) {
+    void clear_bit(uint8_t& data, uint8_t i) {
         data = data & ~((uint8_t)1 << i);
     }
 
-    bool get_bit(uint8_t& data, uint8_t i) {
+    bool is_bit_set(uint8_t& data, uint8_t i) {
         return (data & ((uint8_t)1 << i)) != 0;
+    }
+
+    bool is_bit_clear(uint8_t& data, uint16_t i) {
+        return (data & ((uint8_t)1 << i)) == 0;
     }
 };
 
@@ -237,6 +241,13 @@ public:
 
 class Implied: public AddressingMode{ };
 
+class Accumulator: public AddressingMode{
+public:
+    static uint16_t get_operand_address(Context& ctx) {
+        return 0xFFFF + 0;
+    }
+};
+
 template <class Mode>
 class LDA: public Instruction {
 public:
@@ -267,7 +278,8 @@ class AND: public Instruction {
 public:
     void proceed(Context& ctx) override {
         std::printf("AND\n");
-        uint8_t param = ctx.mem[Mode::get_operand_address(ctx)];
+        uint16_t addr = Mode::get_operand_address(ctx);
+        uint8_t param = Mode::mem_read(ctx.mem, addr);;
         ctx.register_a &= param;
         update_zero_and_negative_flags(ctx, ctx.register_a);        
     }
@@ -278,30 +290,41 @@ class ASL: public Instruction {
 public:
     void proceed(Context& ctx) override {
         std::printf("ASL\n");
-        uint8_t addr = Mode::get_operand_address(ctx);
+        uint16_t addr = Mode::get_operand_address(ctx);
         uint8_t param = Mode::mem_read(ctx.mem, addr);
+        // printf("addr: 0x%x", addr);
         Mode::mem_write(ctx.mem, addr, param << 1);
 
 
+        
+        // 0 is shifted into bit 0 and the
+        // origional bit 7 is shifted into the Carry
         // set C
-        ctx.status = ctx.status | (param & ((uint8_t)1 << INDEX_OF_C));
-
-        // Z
-        if(Mode::mem_read(ctx.mem, addr) != 0) {
-            set_bit(ctx.status, INDEX_OF_Z);
-            // ctx.status = ctx.status & 0b11111101;
+        if((param & 0b10000000) != 0) {
+            set_bit(ctx.status, INDEX_OF_C);
         } else {
-            unset_bit(ctx.status, INDEX_OF_Z);
-            // ctx.status = ctx.status | 0b00000010;
+            clear_bit(ctx.status, INDEX_OF_C);
         }
+        // Z and N
+        update_zero_and_negative_flags(ctx, param << 1);
 
-        // set N
-        if(Mode::mem_read(ctx.mem, addr) & 0b10000000 != 0) {
-            set_bit(ctx.status, INDEX_OF_N);
-            // ctx.status = ctx.status | 0b10000000; 
-        } else {
-            unset_bit(ctx.status, INDEX_OF_N);
-        }
+
+        // // Z
+        // if(Mode::mem_read(ctx.mem, addr) != 0) {
+        //     set_bit(ctx.status, INDEX_OF_Z);
+        //     // ctx.status = ctx.status & 0b11111101;
+        // } else {
+        //     clear_bit(ctx.status, INDEX_OF_Z);
+        //     // ctx.status = ctx.status | 0b00000010;
+        // }
+
+        // // set N
+        // if(Mode::mem_read(ctx.mem, addr) & 0b10000000 != 0) {
+        //     set_bit(ctx.status, INDEX_OF_N);
+        //     // ctx.status = ctx.status | 0b10000000; 
+        // } else {
+        //     clear_bit(ctx.status, INDEX_OF_N);
+        // }
         
     }
 };
@@ -332,7 +355,21 @@ public:
     void proceed(Context& ctx) override {
         std::printf("BCC\n");
         uint16_t addr = Mode::get_operand_address(ctx);
-        ctx.program_counter = addr;
+        if(is_bit_clear(ctx.status, INDEX_OF_C)) {
+            ctx.program_counter = addr;
+        }
+    }
+};
+
+template <class Mode>
+class BCS: public Instruction {
+public:
+    void proceed(Context& ctx) override {
+        std::printf("BCS\n");
+        uint16_t addr = Mode::get_operand_address(ctx);
+        if(is_bit_set(ctx.status, INDEX_OF_C)) {
+            ctx.program_counter = addr;
+        }
     }
 };
 
@@ -342,7 +379,7 @@ public:
     void proceed(Context& ctx) override {
         std::printf("BNE\n");
         uint16_t addr = Mode::get_operand_address(ctx);
-        if(get_bit(ctx.status, INDEX_OF_Z) == false) {
+        if(is_bit_clear(ctx.status, INDEX_OF_Z)) {
             ctx.program_counter = addr;
         }
     }
@@ -524,13 +561,35 @@ public:
     std::unordered_map<uint8_t, Instruction*> opscodeMap;
 
     CPU(): ctx() {
+        // AND
+        register_opencode(0x29, new AND<Immediate>());
+        register_opencode(0x25, new AND<ZeroPage>());
+        register_opencode(0x35, new AND<ZeroPage_X>());
+        register_opencode(0x2D, new AND<Absolute>());
+        register_opencode(0x3D, new AND<Absolute_X>());
+        register_opencode(0x39, new AND<Absolute_Y>());
+        register_opencode(0x21, new AND<Indirect_X>());
+        register_opencode(0x31, new AND<Indirect_Y>());
+
+        // ASL
+        register_opencode(0x0A, new ASL<Accumulator>());
+        register_opencode(0x06, new ASL<ZeroPage>());
+        register_opencode(0x16, new ASL<ZeroPage_X>());
+        register_opencode(0x0E, new ASL<Absolute>());
+        register_opencode(0x1E, new ASL<Absolute_X>());
+
+        // BCC
+        register_opencode(0x90, new BCC<Relative>());
+        register_opencode(0xB0, new BCS<Relative>());
+
+
         register_opencode(0xA9, new LDA<Immediate>());
         register_opencode(0xA5, new LDA<ZeroPage>());
         register_opencode(0xAD, new LDA<Absolute>());
         register_opencode(0xA2, new LDX<Immediate>());
         register_opencode(0xCA, new DEX<Implied>());
 
-        register_opencode(0x90, new BCC<Relative>());
+        
         register_opencode(0xD0, new BNE<Relative>());
 
         register_opencode(0x85, new STA<ZeroPage>());

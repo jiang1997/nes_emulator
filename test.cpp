@@ -64,15 +64,41 @@ void test_BBC() {
     }
 }
 
+void test_AND_and_ASL() {
+    std::printf("-------test_AND_relative-------\n");
+    c1.load({0xa9, 0x01, 0x0a, 0x90, 0xfd, 0x00});
+    c1.reset();
+    // for(int i = 0; c1.ctx.terminal != true; ++i) {
+        // c1.step();
+    // }
+    c1.step();
+    // printf("%d\n", c1.ctx.register_a);
+    assert(c1.ctx.register_a == (1 << 0));
+    assert(c1.ctx.status == 0);
+    for(int i = 1; i < 8; ++i) {
+        c1.step();
+        // printf("%d\n", c1.ctx.register_a);
+        assert(c1.ctx.register_a == (1 << i));
+        c1.step();        
+    }
+
+    c1.step();
+    assert(c1.ctx.register_a == 0);
+    c1.step();
+    c1.step();
+    
+}
+
 int main() {
 
 
-    // test_0xA9_LDA_immidiate_load_data();
-    // test_0xA9_LDA_zero_flag();
-    // test_0xAA_TAX_move_a_to_x();
+    test_0xA9_LDA_immidiate_load_data();
+    test_0xA9_LDA_zero_flag();
+    test_0xAA_TAX_move_a_to_x();
 
-    // test_5_ops_working_together();
-    // test_INX_ouerflow();
+    test_5_ops_working_together();
+    test_INX_ouerflow();
     test_BBC();
+    test_AND_and_ASL();
     return 0;
 }
